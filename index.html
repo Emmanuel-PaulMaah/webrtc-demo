@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Simple WebRTC Call</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Simple WebRTC Video Call</h1>
+
+  <div>
+    <h2>Your Video</h2>
+    <video id="localVideo" autoplay muted playsinline></video>
+  </div>
+
+  <div>
+    <h2>Remote Video</h2>
+    <video id="remoteVideo" autoplay playsinline></video>
+  </div>
+
+  <div>
+    <label>Enter Peer ID to call:</label>
+    <input type="text" id="peerIdInput" placeholder="Peer ID">
+    <button id="callButton">Call</button>
+  </div>
+
+  <div>
+    <p>Your Peer ID: <span id="myId">...</span></p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.4.7/dist/peerjs.min.js"></script>
+  <script>
+    const localVideo = document.getElementById('localVideo');
+    const remoteVideo = document.getElementById('remoteVideo');
+    const callButton = document.getElementById('callButton');
+    const peerIdInput = document.getElementById('peerIdInput');
+    const myIdSpan = document.getElementById('myId');
+
+    let localStream;
+
+    // Get camera/mic
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      .then(stream => {
+        localVideo.srcObject = stream;
+        localStream = stream;
+      })
+      .catch(err => alert('Could not access camera/mic: ' + err));
+
+    // Create PeerJS peer (uses free cloud server)
+    const peer = new Peer();
+
+    peer.on('open', id => {
+      myIdSpan.textContent = id;
+      console.log('Your Peer ID:', id);
+    });
+
+    // Answer incoming calls
+    peer.on('call', call => {
+      call.answer(localStream);
+      call.on('stream', remoteStream => {
+        remoteVideo.srcObject = remoteStream;
+      });
+    });
+
+    // Call button
+    callButton.onclick = () => {
+      const remoteId = peerIdInput.value.trim();
+      if (!remoteId) return alert('Enter a Peer ID to call');
+      const call = peer.call(remoteId, localStream);
+      call.on('stream', remoteStream => {
+        remoteVideo.srcObject = remoteStream;
+      });
+    };
+  </script>
+</body>
+</html>
