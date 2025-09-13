@@ -2,8 +2,32 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Simple WebRTC Call</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Simple WebRTC Call - Dune x Nigeria</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+
+    video {
+      width: 300px;
+      height: 200px;
+      background: #000;
+      margin: 10px;
+      border: 2px solid #333;
+    }
+
+    input {
+      width: 200px;
+      padding: 5px;
+      margin-right: 5px;
+    }
+
+    button {
+      padding: 5px 10px;
+    }
+  </style>
 </head>
 <body>
   <h1>Simple WebRTC Video Call</h1>
@@ -38,6 +62,25 @@
 
     let localStream;
 
+    // Words from the Dune universe
+    const duneWords = [
+      "Arrakis", "Fremen", "Sietch", "ShaiHulud", "Spice", 
+      "BeneGesserit", "Kwizatz", "Harkonnen", "Atreides", "MuadDib"
+    ];
+
+    // Places in Nigeria
+    const nigeriaPlaces = [
+      "Lagos", "Abuja", "Kano", "Ibadan", "PortHarcourt", 
+      "Enugu", "Kaduna", "Jos", "Benin", "Yola"
+    ];
+
+    // Generate random Peer ID
+    function randomPeerId() {
+      const word1 = duneWords[Math.floor(Math.random() * duneWords.length)];
+      const word2 = nigeriaPlaces[Math.floor(Math.random() * nigeriaPlaces.length)];
+      return `${word1}-${word2}`;
+    }
+
     // Get camera/mic
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       .then(stream => {
@@ -46,8 +89,9 @@
       })
       .catch(err => alert('Could not access camera/mic: ' + err));
 
-    // Create PeerJS peer (uses free cloud server)
-    const peer = new Peer();
+    // Create PeerJS peer with human-friendly ID
+    const peerId = randomPeerId();
+    const peer = new Peer(peerId);
 
     peer.on('open', id => {
       myIdSpan.textContent = id;
