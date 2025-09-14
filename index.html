@@ -1,120 +1,125 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Simple WebRTC Call - Dune x Nigeria</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 20px;
-    }
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Simple WebRTC Video Call Demo</title>
+    <style>
+      video {
+        width: 45%;
+        margin: 10px;
+        border: 1px solid #ccc;
+      }
+      #warnings {
+        background: #ffdddd;
+        color: #900;
+        padding: 10px;
+        margin: 10px 0;
+        border: 1px solid #900;
+        font-family: sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Simple WebRTC Video Call Demo</h2>
 
-    video {
-      width: 300px;
-      height: 200px;
-      background: #000;
-      margin: 10px;
-      border: 2px solid #333;
-    }
+    <!-- 🔍 Extension interference warning will appear here -->
+    <div id="warnings"></div>
 
-    input {
-      width: 200px;
-      padding: 5px;
-      margin-right: 5px;
-    }
+    <div>
+      <h3>Your Video</h3>
+      <video id="my-video" autoplay playsinline muted></video>
+    </div>
+    <div>
+      <h3>Remote Video</h3>
+      <video id="remote-video" autoplay playsinline></video>
+    </div>
 
-    button {
-      padding: 5px 10px;
-    }
-  </style>
-</head>
-<body>
-  <h1>Simple WebRTC Video Call</h1>
+    <div>
+      <h3>Your Peer ID:</h3>
+      <p id="my-id">Generating...</p>
+    </div>
 
-  <div>
-    <h2>Your Video</h2>
-    <video id="localVideo" autoplay muted playsinline></video>
-  </div>
+    <div>
+      <input type="text" id="remote-id" placeholder="Enter remote peer ID">
+      <button id="call-btn">Call</button>
+    </div>
 
-  <div>
-    <h2>Remote Video</h2>
-    <video id="remoteVideo" autoplay playsinline></video>
-  </div>
+    <!-- 🔍 Tampering detection script -->
+    <script>
+      (function checkForTampering() {
+        let warnings = [];
 
-  <div>
-    <label>Enter Peer ID to call:</label>
-    <input type="text" id="peerIdInput" placeholder="Peer ID">
-    <button id="callButton">Call</button>
-  </div>
+        // Check if mediaDevices looks native
+        const md = navigator.mediaDevices;
+        if (!md || typeof md.getUserMedia !== "function") {
+          warnings.push("⚠️ navigator.mediaDevices is missing or altered.");
+        } else {
+          const mdStr = md.getUserMedia.toString();
+          if (!mdStr.includes("[native code]")) {
+            warnings.push("⚠️ getUserMedia seems to be overridden by an extension.");
+          }
+        }
 
-  <div>
-    <p>Your Peer ID: <span id="myId">...</span></p>
-  </div>
+        // Check if RTCPeerConnection looks native
+        const PC = window.RTCPeerConnection || window.webkitRTCPeerConnection;
+        if (!PC) {
+          warnings.push("⚠️ RTCPeerConnection not available.");
+        } else {
+          const pcStr = PC.toString();
+          if (!pcStr.includes("[native code]")) {
+            warnings.push("⚠️ RTCPeerConnection may be patched by an extension.");
+          }
+        }
 
-  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.4.7/dist/peerjs.min.js"></script>
-  <script>
-    const localVideo = document.getElementById('localVideo');
-    const remoteVideo = document.getElementById('remoteVideo');
-    const callButton = document.getElementById('callButton');
-    const peerIdInput = document.getElementById('peerIdInput');
-    const myIdSpan = document.getElementById('myId');
+        if (warnings.length > 0) {
+          const warningsDiv = document.getElementById("warnings");
+          warningsDiv.innerHTML = `
+            <strong>Possible Extension Interference Detected</strong><br>
+            ${warnings.join("<br>")}<br>
+            Try running this demo in <b>Incognito mode</b> or disabling extensions.
+          `;
+        }
+      })();
+    </script>
 
-    let localStream;
+    <!-- PeerJS -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script>
+      const myVideo = document.getElementById("my-video");
+      const remoteVideo = document.getElementById("remote-video");
+      const myIdElem = document.getElementById("my-id");
+      const remoteIdInput = document.getElementById("remote-id");
+      const callBtn = document.getElementById("call-btn");
 
-    // Words from the Dune universe
-    const duneWords = [
-      "Arrakis", "Fremen", "Sietch", "ShaiHulud", "Spice", 
-      "BeneGesserit", "Kwizatz", "Harkonnen", "Atreides", "MuadDib"
-    ];
+      // Get user media
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then(stream => {
+          myVideo.srcObject = stream;
 
-    // Places in Nigeria
-    const nigeriaPlaces = [
-      "Lagos", "Abuja", "Kano", "Ibadan", "PortHarcourt", 
-      "Enugu", "Kaduna", "Jos", "Benin", "Yola"
-    ];
+          const peer = new Peer();
 
-    // Generate random Peer ID
-    function randomPeerId() {
-      const word1 = duneWords[Math.floor(Math.random() * duneWords.length)];
-      const word2 = nigeriaPlaces[Math.floor(Math.random() * nigeriaPlaces.length)];
-      return `${word1}-${word2}`;
-    }
+          peer.on("open", id => {
+            myIdElem.textContent = id;
+          });
 
-    // Get camera/mic
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      .then(stream => {
-        localVideo.srcObject = stream;
-        localStream = stream;
-      })
-      .catch(err => alert('Could not access camera/mic: ' + err));
+          peer.on("call", call => {
+            call.answer(stream);
+            call.on("stream", remoteStream => {
+              remoteVideo.srcObject = remoteStream;
+            });
+          });
 
-    // Create PeerJS peer with human-friendly ID
-    const peerId = randomPeerId();
-    const peer = new Peer(peerId);
-
-    peer.on('open', id => {
-      myIdSpan.textContent = id;
-      console.log('Your Peer ID:', id);
-    });
-
-    // Answer incoming calls
-    peer.on('call', call => {
-      call.answer(localStream);
-      call.on('stream', remoteStream => {
-        remoteVideo.srcObject = remoteStream;
-      });
-    });
-
-    // Call button
-    callButton.onclick = () => {
-      const remoteId = peerIdInput.value.trim();
-      if (!remoteId) return alert('Enter a Peer ID to call');
-      const call = peer.call(remoteId, localStream);
-      call.on('stream', remoteStream => {
-        remoteVideo.srcObject = remoteStream;
-      });
-    };
-  </script>
-</body>
+          callBtn.addEventListener("click", () => {
+            const remoteId = remoteIdInput.value;
+            const call = peer.call(remoteId, stream);
+            call.on("stream", remoteStream => {
+              remoteVideo.srcObject = remoteStream;
+            });
+          });
+        })
+        .catch(err => {
+          console.error("Failed to get local stream", err);
+        });
+    </script>
+  </body>
 </html>
